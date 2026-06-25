@@ -19,6 +19,16 @@ pub const command = struct {
     const fnType = *const fn (Slice) bool;
 };
 
+// Structure to represent the type of option (i forgot this :>)
+pub const option = struct {
+    name: Slice,
+    func: ?fnType = null,
+    short: Byte, // e.g. -h or -H
+    long: Slice, // e.g --name or --version
+    value: Slice = "",
+    const fnType = *const fn (Slice) bool;
+};
+
 pub const Error = error{
     NoArgsProvided,
     UnknownCommand,
@@ -31,39 +41,39 @@ pub const Error = error{
 };
 
 
-// NOTE: Command Parser implementation below
-/// This will start the CLI App
+/// Starts the CLI application.
 pub fn start(commands: []const command, options: []const option, debug: bool) !void {
     if (commands.len > MAX_COMMANDS) {
-       return error.TooManyCommands;
+        return error.TooManyCommands;
     }
-    if (options.len > MAX_OPTIONSF) {
-       return error.TooManyOptions;
+    if (options.len > MAX_OPTIONS) {
+        return error.TooManyOptions;
     }
-    // NOTE: General-Purpose allocator for mananging memory during execution
-    // I don't know what ^^^^^ those mean TODO: Search them later.
+
+    // Create a general-purpose allocator for managing memory during execution
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    // NOTE: Retrieve the command-line arguments in a cross-platform manner
-    // TODO: Search this one too
+    // Retrieve the command-line arguments in a cross-platform manner
     const args = try std.process.argsAlloc(allocator);
     defer std.process.argsFree(allocator, args);
 
     try startWithArgs(commands, options, args, debug);
 }
 
+/// Starts the CLI application with provided arguments.
 pub fn startWithArgs(commands: []const command, options: []const option, args: anytype, debug: bool) !void {
     if (args.len < 2) {
-        if(debug) std.debug.print("I sense no commands :<\n", .{});
+        if(debug) std.debug.print("No command provided by user!\n", .{});
         return Error.NoArgsProvided;
     }
-    // NOTE: Extract the name of the command (the second argument after program name)
+
+    // Extract the name of the command (the second argument after the program name)
     const command_name = args[1];
     var detected_command: ?command = null;
 
-    // NOTE: Search through the list of available commands to find a match
+    // Search through the list of available commands to find a match
     for (commands) |cmd| {
         if (std.mem.eql(u8, cmd.name, command_name)) {
             detected_command = cmd;
@@ -71,101 +81,102 @@ pub fn startWithArgs(commands: []const command, options: []const option, args: a
         }
     }
 
-    // NOTE: then if the command not found in loop systats will slap an error
+    // If no matching command is found, return an error
     if (detected_command == null) {
         if(debug) std.debug.print("Unknown command: {s}\n", .{command_name});
         return Error.UnknownCommand;
     }
 
-    // NOTE: Retrieve the matched command from the optional variable
+    // Retrieve the matched command from the optional variable
     const cmd = detected_command.?;
 
-   if(debug) std.debug.print("I found a command:3 {s}\n", .{cmd.name}); 
+    if(debug) std.debug.print("Detected command: {s}\n", .{cmd.name});
 
-   // Allocate memory for detected option based on remaining arguments
-   var detected_options: [MAX_OPTIONS]option = undefined;
-   var detected_len: usize = 0;
-   var i: usize = 2;
+    // Allocate memory for detected options based on remaining arguments
+    var detected_options: [MAX_OPTIONS]option = undefined;
+    var detected_len: usize = 0;
+    var i: usize = 2;
 
-   // NOTE: Parsing options to capture their value
-   while (i < args.len) {
-       const arg = args[i];
+    // Parsing options to capture their values
+    while (i < args.len) {
+        const arg = args[i];
 
-       if (std.mem.startsWith(u8, arg, "-")) {
-           const option_name = if (std.mem.startWith(u8, arg[1..], "-")) arg[2..] else arg[1..];
-           var matched_option: ?option = null;
+        if (std.mem.startsWith(u8, arg, "-")) {
+            const option_name = if (std.mem.startsWith(u8, arg[1..], "-")) arg[2..] else arg[1..];
+            var matched_option: ?option = null;
 
-           for (options) |opt| {
-               if (std.mem.eql(u8, option_name, opt.long) or (option_name.len == 1 and option_name[0] == opt.short)) {
-                   matched_option = opt;
-                   break;
-               }
-           }
-           if (matched_option == null) {
-               if(debug) std.debug.print("This option is new to me: {s}\n", .{arg});
-               return Error.UnknownOption;
-           }
+            for (options) |opt| {
+                if (std.mem.eql(u8, option_name, opt.long) or (option_name.len == 1 and option_name[0] == opt.short)) {
+                    matched_option = opt;
+                    break;
+                }
+            }
 
-           var opt = matched_option.?;
+            if (matched_option == null) {
+                if(debug) std.debug.print("Unknown option: {s}\n", .{arg});
+                return Error.UnknownOption;
+            }
 
-           // NOTE: Detect the value for the option
-           if (i + 1 < args.len and !std.mem.startsWith(u8, args[i + 1], "-")) {
-               opt.value = args[i + 1];
-               i += 1;
-           } else {
-               opt.value = "";
-           }
+            var opt = matched_option.?;
 
-           if (detected_len >= MAX_OPTIONS) {
-               return error.TooManyOptions;
-           }
+            // Detect the value for the option
+            if (i + 1 < args.len and !std.mem.startsWith(u8, args[i + 1], "-")) {
+                opt.value = args[i + 1];
+                i += 1;
+            } else {
+                opt.value = "";
+            }
 
-           detected_options[detected_len] = opt;
-           detected_len += 1;
-       } else {
-           if (debug) std.debug.print("Unexpected argument: {s}\n", .{arg});
-           return Error.UnexpectedArgument;
-       }
-       i += 1;
-   }
+            if (detected_len >= MAX_OPTIONS) {
+                return error.TooManyOptions;
+            }
 
-   // NOTE: Slice the detected options to the actual number of detected options :)))
-   const used_options = detected_options[0..detected_len];
+            detected_options[detected_len] = opt;
+            detected_len += 1;
+        } else {
+            if(debug) std.debug.print("Unexpected argument: {s}\n", .{arg});
+            return Error.UnexpectedArgument;
+        }
 
-   // Ensure all required options for the detected command are provided
-   for (cmd.req) |req_option| {
-       var found = false;
+        i += 1;
+    }
 
-       for (used_options) |opt| {
-           if (std.mem.eql(u8, req_options, opt.name)) {
-               found = true; break;
-           }
-       }
+    // Slice the detected options to the actual number of detected options
+    const used_options = detected_options[0..detected_len];
 
-       if (!found) {
-           if(debug) std.debug.print("Missing required option: {s}\n", .{req_option});
-           return Error.MissingRequiredOption;
-       }
-   }
+    // Ensure all required options for the detected command are provided
+    for (cmd.req) |req_option| {
+        var found = false;
 
-   // NOTE: Execute the command's associated function with the detected options
-   if (!cmd.func(used_options)) {
-       return Error.CommandExecutionFailed;
-   } else {
-       // NOTE: Execute option functions
-       for (used_options) |opt| {
-           if(opt.func == null) continue;
+        for (used_options) |opt| {
+            if (std.mem.eql(u8, req_option, opt.name)){
+                found = true; break;
+            }
+        }
 
-           const result = opt.func.?(opt.value);
+        if (!found) {
+            if(debug) std.debug.print("Missing required option: {s}\n", .{req_option});
+            return Error.MissingRequiredOption;
+        }
+    }
 
-           if (!result) {
-               if(debug) std.debug.print("Option function execution failed:( {s}\n", .{opt.name});
-               return Error.CommandExecutionFailed;
-           }
-       }
-   }
+    // Execute the command's associated function with the detected options
+    if (!cmd.func(used_options)) {
+        return Error.CommandExecutionFailed;
+    } else {
+        // Execute option functions
+        for (used_options) |opt| {
+            if(opt.func == null) continue;
 
-   // NOTE: If execution reaches this point, the command was executed successfully
-   if(debug) std.debug.print("Command executed successfully :) {s}\n", .{cmd.name});
+            const result = opt.func.?(opt.value);
+
+            if (!result) {
+                if(debug) std.debug.print("Option function execution failed: {s}\n", .{opt.name});
+                return Error.CommandExecutionFailed;
+            }
+        }
+    }
+
+    // If execution reaches this point, the command was executed successfully
+    if(debug) std.debug.print("Command executed successfully: {s}\n", .{cmd.name});
 }
-
