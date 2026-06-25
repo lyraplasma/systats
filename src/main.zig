@@ -25,5 +25,5 @@ pub fn main() !void {
         },
     };
     // This will start the app
-    try.cli.start(&commands, &options, true);
+    try cli.start(&commands, &options, true);
 }
