@@ -28,9 +28,9 @@ pub const methods = struct {
                 "Usage: systats <command> [options]\n" ++
                 "Commands:\n" ++
                 " hello     Greet someone\n" ++
-                " help      Get help\n"++
-                ""++
-                "Options for hello:\n"++
+                " help      Get help\n" ++
+                "" ++
+                "Options for hello:\n" ++
                 " -n, --name <value>    Name to greet\n"
                 , .{}
                 );
