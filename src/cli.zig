@@ -50,7 +50,10 @@ pub fn start(commands: []const command, options: []const option, debug: bool) !v
     }
 
     // Create a general-purpose allocator for managing memory during execution
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    // zig 0.16.0 won't let me use this DON'T TOUCH THIS
+    //var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    //var gpa = std.heap.page_allocator(.{}){};
+    var gpa = std.heap.SmpAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 

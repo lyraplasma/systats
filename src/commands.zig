@@ -34,7 +34,7 @@ pub const methods = struct {
                 " -n, --name <value>    Name to greet\n"
                 , .{}
                 );
-            return true
+            return true;
         }
     };
 
