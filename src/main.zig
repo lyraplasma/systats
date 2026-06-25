@@ -4,7 +4,7 @@ const cmd = @import("commands.zig");
 
 pub fn main() !void {
     // NOTE: Define available commands
-    const command = [_]cli.command{
+    const commands = [_]cli.command{
         cli.command{
             .name = "hello",
             .func = &cmd.methods.commands.helloFn,

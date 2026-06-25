@@ -22,6 +22,20 @@ pub const methods = struct {
        std.debug.print("!\n", .{});
        return true;
        }
+
+        pub fn helpFn(_: []const cli.option) bool {
+            std.debug.print(
+                "Usage: systats <command> [options]\n" ++
+                "Commands:\n" ++
+                " hello     Greet someone\n" ++
+                " help      Get help\n"++
+                ""++
+                "Options for hello:\n"++
+                " -n, --name <value>    Name to greet\n"
+                , .{}
+                );
+            return true
+        }
     };
 
     pub const options = struct {

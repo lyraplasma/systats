@@ -12,11 +12,10 @@ const Slices = []const Slice;
 
 pub const command = struct {
     name: Slice,
-    func: ?fnType = null,
-    short: Byte,
-    long: Slice,
-    value: Slice = "",
-    const fnType = *const fn (Slice) bool;
+    func: fnType,
+    req: Slices = &.{},
+    opt: Slices = &.{},
+    const fnType = *const fn ([]const option) bool;
 };
 
 // Structure to represent the type of option (i forgot this :>)
